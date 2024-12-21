@@ -6,7 +6,7 @@ def setup_database():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
-    # Tabella utenti
+    # Creazione tabella utenti
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -17,7 +17,7 @@ def setup_database():
         )
     """)
 
-    # Tabella categorie
+    # Creazione tabella categorie
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS categories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -25,7 +25,7 @@ def setup_database():
         )
     """)
 
-    # Tabella frasi
+    # Creazione tabella frasi
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS phrases (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,7 +35,7 @@ def setup_database():
         )
     """)
 
-    # Tabella annotazioni
+    # Creazione tabella annotazioni
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS annotations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,7 +50,7 @@ def setup_database():
 
     conn.commit()
     conn.close()
+    print("Database setup complete!")
 
 if __name__ == "__main__":
     setup_database()
-    print("Database setup complete!")

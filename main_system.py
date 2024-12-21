@@ -1,8 +1,8 @@
 import sqlite3
 import csv
 from setup_database import setup_database
-from PyInquirer import prompt
 from annotate_system import annotation_menu
+from PyInquirer import prompt
 
 DB_NAME = "annotation_system.db"
 
