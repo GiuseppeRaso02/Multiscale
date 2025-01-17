@@ -5,7 +5,6 @@ import random
 
 DB_NAME = "annotation_system.db"
 
-
 def annotate_category(user_id, category_id):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -32,9 +31,14 @@ def annotate_category(user_id, category_id):
 
     for _ in range(repetitions):
         for i in range(0, len(all_phrases), num_phrases):
-            phrases = all_phrases[i:i + num_phrases]
+            # Seleziona frasi non ancora viste
+            phrases = [phrase for phrase in all_phrases if phrase[0] not in seen_phrases][:num_phrases]
 
-            # Ensure all phrases are seen at least once
+            if not phrases:
+                # Se tutte le frasi sono già state viste, reimposta
+                seen_phrases.clear()
+                phrases = all_phrases[:num_phrases]
+
             for phrase in phrases:
                 seen_phrases.add(phrase[0])
 
@@ -42,7 +46,7 @@ def annotate_category(user_id, category_id):
                 {
                     'type': 'checkbox',
                     'name': 'best_phrases',
-                    'message': 'Select the Offensive phrases:',
+                    'message': 'Select the not Offensive phrases:',
                     'choices': [{'name': phrase[1], 'value': phrase[0]} for phrase in phrases]
                 }
             ]
@@ -52,7 +56,7 @@ def annotate_category(user_id, category_id):
                 {
                     'type': 'checkbox',
                     'name': 'worst_phrases',
-                    'message': 'Select the not Offensive phrases:',
+                    'message': 'Select the Offensive phrases:',
                     'choices': [{'name': phrase[1], 'value': phrase[0]} for phrase in phrases]
                 }
             ]
@@ -61,14 +65,14 @@ def annotate_category(user_id, category_id):
             for phrase_id in best_phrases:
                 cursor.execute("""
                     INSERT INTO annotations (user_id, phrase_id, best, worst)
-                    VALUES (?, ?, ?, ?)
-                """, (user_id, phrase_id, True, False))
+                    VALUES (?, ?, True, False)
+                """, (user_id, phrase_id))
 
             for phrase_id in worst_phrases:
                 cursor.execute("""
                     INSERT INTO annotations (user_id, phrase_id, best, worst)
-                    VALUES (?, ?, ?, ?)
-                """, (user_id, phrase_id, False, True))
+                    VALUES (?, ?, False, True)
+                """, (user_id, phrase_id))
 
     # Ensure all phrases are seen at least once
     unseen_phrases = [phrase for phrase in all_phrases if phrase[0] not in seen_phrases]
@@ -81,8 +85,9 @@ def annotate_category(user_id, category_id):
     conn.close()
     print("Annotations saved successfully!")
 
+    calculate_scores_for_user(user_id)
 
-def calculate_scores():
+def calculate_scores_for_user(user_id):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
@@ -92,15 +97,14 @@ def calculate_scores():
                SUM(CASE WHEN a.worst THEN 1 ELSE 0 END) AS worst_votes
         FROM phrases p
         LEFT JOIN annotations a ON p.id = a.phrase_id
+        WHERE a.user_id = ?
         GROUP BY p.id
-    """)
+    """, (user_id,))
 
     phrases = cursor.fetchall()
     scores = {}
 
-    max_raw_score = 0
-
-    # Calcola i punteggi grezzi e trova il massimo
+    # Calcola i punteggi normalizzati
     for phrase in phrases:
         phrase_id, text, best_votes, worst_votes = phrase
         best_votes = best_votes or 0
@@ -108,23 +112,18 @@ def calculate_scores():
         total_votes = best_votes + worst_votes
 
         if total_votes > 0:
-            raw_score = max(0, (exp(best_votes) - exp(worst_votes)) / total_votes)  # Avoid negative raw_score
-            max_raw_score = max(max_raw_score, raw_score)
-            scores[phrase_id] = (text, raw_score)
+            # Punteggio normalizzato tra 0 e 1
+            raw_score = (worst_votes - best_votes) / total_votes
+            normalized_score = (raw_score + 1) / 2  # Porta il range da [-1, 1] a [0, 1]
+            scores[phrase_id] = (text, normalized_score)
         else:
-            scores[phrase_id] = (text, 0.0)
-
-    # Normalizza i punteggi in base al massimo valore calcolato
-    for phrase_id, (text, raw_score) in scores.items():
-        normalized_score = raw_score / max_raw_score if max_raw_score > 0 else 0.0
-        scores[phrase_id] = (text, normalized_score)
+            scores[phrase_id] = (text, 0.5)  # Neutro se non ci sono voti
 
     conn.close()
 
-    print("Scores:")
+    print("Scores for user:")
     for phrase_id, (text, score) in scores.items():
         print(f"Phrase: {text}, Score: {score:.2f}")
-
 
 def view_annotations_by_user():
     conn = sqlite3.connect(DB_NAME)
@@ -228,7 +227,6 @@ def annotation_menu():
     if choice == "1":
         category_id = int(input("Choose a category ID to annotate: "))
         annotate_category(user_id, category_id)
-        calculate_scores()
     elif choice == "2":
         view_annotations_by_user()
     elif choice == "3":

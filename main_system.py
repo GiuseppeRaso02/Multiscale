@@ -2,6 +2,7 @@ import sqlite3
 import csv
 from setup_database import setup_database
 from annotate_system import annotation_menu
+from analyze_data import analyze_data
 from PyInquirer import prompt
 
 DB_NAME = "annotation_system.db"
@@ -49,18 +50,65 @@ def list_users():
     users = cursor.fetchall()
     conn.close()
 
+    print("Users List:")
     for user in users:
         print(user)
+
+    input("Press Enter to return to the main menu.")
+
+def delete_user():
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    username = input("Enter the username to delete: ")
+    cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+    user = cursor.fetchone()
+
+    if not user:
+        print("User not found!")
+    else:
+        user_id = user[0]
+        cursor.execute("DELETE FROM annotations WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        conn.commit()
+        print(f"User '{username}' and all associated data have been deleted.")
+
+    conn.close()
+
+def delete_all_annotations():
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    confirm = input("Are you sure you want to delete all annotations? (yes/no): ").lower()
+    if confirm == "yes":
+        cursor.execute("DELETE FROM annotations")
+        conn.commit()
+        print("All annotations have been deleted.")
+    else:
+        print("Operation cancelled.")
+
+    conn.close()
 
 def add_category():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
-    category_name = input("Enter category name: ")
-    cursor.execute("INSERT INTO categories (name) VALUES (?)", (category_name,))
-    conn.commit()
-    conn.close()
-    print(f"Category '{category_name}' added successfully!")
+    while True:
+        print("Add Category")
+        print("1. Enter category name")
+        print("2. Return to main menu")
+
+        choice = input("Choose an option: ")
+        if choice == "2":
+            return
+
+        if choice == "1":
+            category_name = input("Enter category name: ")
+            cursor.execute("INSERT INTO categories (name) VALUES (?)", (category_name,))
+            conn.commit()
+            conn.close()
+            print(f"Category '{category_name}' added successfully!")
+            return
 
 def import_phrases_from_tsv(category_id, filename):
     conn = sqlite3.connect(DB_NAME)
@@ -86,24 +134,31 @@ def main():
 
     while True:
         print("1. Add User")
-        print("2. List Users")
-        print("3. Add Category")
-        print("4. Import Phrases (from TSV)")
-        print("5. Start Annotation")
-        print("6. Exit")
+        print("2. Delete User and Associated Data")
+        print("3. List Users")
+        print("4. Add Category")
+        print("5. Import Phrases (from TSV)")
+        print("6. Start Annotation")
+        print("7. Analyze Data")
+        print("8. Delete All Annotations")
+        print("9. Exit")
 
         choice = input("Choose an option: ")
+
         if choice == "1":
             add_user()
         elif choice == "2":
-            list_users()
+            delete_user()
         elif choice == "3":
-            add_category()
+            list_users()
         elif choice == "4":
+            add_category()
+        elif choice == "5":
             conn = sqlite3.connect(DB_NAME)
             cursor = conn.cursor()
 
             category_name = input("Enter category name to import phrases into: ")
+
             cursor.execute("SELECT id FROM categories WHERE name = ?", (category_name,))
             category = cursor.fetchone()
 
@@ -111,16 +166,21 @@ def main():
                 print(f"Category '{category_name}' not found!")
             else:
                 category_id = category[0]
-                filename = input("Enter TSV filename (e.g., culo.tsv): ")
+                filename = input("Enter TSV filename (e.g., phrases.tsv): ")
                 import_phrases_from_tsv(category_id, filename)
 
             conn.close()
-        elif choice == "5":
-            annotation_menu()
         elif choice == "6":
+            annotation_menu()
+        elif choice == "7":
+            analyze_data()
+        elif choice == "8":
+            delete_all_annotations()
+        elif choice == "9":
+            print("Goodbye!")
             break
         else:
-            print("Invalid choice!")
+            print("Invalid choice! Please try again.")
 
 if __name__ == "__main__":
     main()
