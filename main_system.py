@@ -3,7 +3,8 @@ import csv
 from setup_database import setup_database
 from annotate_system import annotation_menu
 from analyze_data import analyze_data
-from PyInquirer import prompt
+import questionary
+
 
 DB_NAME = "annotation_system.db"
 
@@ -31,7 +32,7 @@ def add_user():
         }
     ]
 
-    education = prompt(question_education)['education']
+    education = questionary.prompt(question_education)['education']
 
     cursor.execute("""
         INSERT INTO users (username, age, gender, education)

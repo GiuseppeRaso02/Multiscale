@@ -1,9 +1,16 @@
 import sqlite3
 from math import exp, log
-from PyInquirer import prompt
+import questionary
 import random
+import textwrap
 
 DB_NAME = "annotation_system.db"
+
+
+def format_phrase(phrase, width=80):
+    """Formatta la frase per adattarla alla larghezza del terminale"""
+    return "\n".join(textwrap.wrap(phrase, width))
+
 
 def annotate_category(user_id, category_id):
     conn = sqlite3.connect(DB_NAME)
@@ -31,55 +38,54 @@ def annotate_category(user_id, category_id):
 
     for _ in range(repetitions):
         for i in range(0, len(all_phrases), num_phrases):
-            # Seleziona frasi non ancora viste
-            phrases = [phrase for phrase in all_phrases if phrase[0] not in seen_phrases][:num_phrases]
+            phrases = all_phrases[i:i + num_phrases]
 
-            if not phrases:
-                # Se tutte le frasi sono già state viste, reimposta
-                seen_phrases.clear()
-                phrases = all_phrases[:num_phrases]
-
+            # Ensure all phrases are seen at least once
             for phrase in phrases:
                 seen_phrases.add(phrase[0])
+
+            formatted_phrases = [{
+                'name': format_phrase(phrase[1]), 'value': phrase[0]
+            } for phrase in phrases]
 
             question_best = [
                 {
                     'type': 'checkbox',
                     'name': 'best_phrases',
-                    'message': 'Select the not Offensive phrases:',
-                    'choices': [{'name': phrase[1], 'value': phrase[0]} for phrase in phrases]
+                    'message': 'Select the Offensive phrases:',
+                    'choices': formatted_phrases
                 }
             ]
-            best_phrases = prompt(question_best)['best_phrases']
+            best_phrases = questionary.prompt(question_best)['best_phrases']
 
             question_worst = [
                 {
                     'type': 'checkbox',
                     'name': 'worst_phrases',
-                    'message': 'Select the Offensive phrases:',
-                    'choices': [{'name': phrase[1], 'value': phrase[0]} for phrase in phrases]
+                    'message': 'Select the not Offensive phrases:',
+                    'choices': formatted_phrases
                 }
             ]
-            worst_phrases = prompt(question_worst)['worst_phrases']
+            worst_phrases = questionary.prompt(question_worst)['worst_phrases']
 
             for phrase_id in best_phrases:
                 cursor.execute("""
                     INSERT INTO annotations (user_id, phrase_id, best, worst)
-                    VALUES (?, ?, True, False)
-                """, (user_id, phrase_id))
+                    VALUES (?, ?, ?, ?)
+                """, (user_id, phrase_id, True, False))
 
             for phrase_id in worst_phrases:
                 cursor.execute("""
                     INSERT INTO annotations (user_id, phrase_id, best, worst)
-                    VALUES (?, ?, False, True)
-                """, (user_id, phrase_id))
+                    VALUES (?, ?, ?, ?)
+                """, (user_id, phrase_id, False, True))
 
     # Ensure all phrases are seen at least once
     unseen_phrases = [phrase for phrase in all_phrases if phrase[0] not in seen_phrases]
     if unseen_phrases:
         print("The following phrases were not seen and will be presented now:")
         for phrase_id, text in unseen_phrases:
-            print(text)
+            print(format_phrase(text))
 
     conn.commit()
     conn.close()

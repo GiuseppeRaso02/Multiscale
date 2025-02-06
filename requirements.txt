@@ -1,0 +1,14 @@
+# Elenco delle librerie necessarie per il progetto
+
+# Libreria per input interattivi
+questionary
+
+# Gestione dei dati e operazioni numeriche
+numpy
+pandas
+
+# Visualizzazione grafica (opzionale)
+matplotlib
+
+# Operazioni scientifiche avanzate (opzionale)
+scipy
