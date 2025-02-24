@@ -5,9 +5,14 @@ import os
 
 DB_NAME = "annotation_system.db"
 
+# Definisci i codici ANSI per il colore arancione e il reset
+ORANGE = '\033[38;5;214m'
+RESET = '\033[0m'
+
 # Assicurati che la directory 'analysis' esista
 if not os.path.exists("analysis"):
     os.makedirs("analysis")
+
 
 def analyze_data():
     conn = sqlite3.connect(DB_NAME)
@@ -53,9 +58,9 @@ def analyze_data():
 
     # Calcola i voti totali e filtra le frasi con voti
     df["totalVotes"] = df["bestVotes"] + df["worstVotes"]
-    df = df[df["totalVotes"] > 0]  # Filtra le frasi senza voti
+    df = df[df["totalVotes"] > 0]
 
-    # Calcolo dei punteggi lineare
+    # Calcolo del punteggio lineare: linearScore = (bestVotes - worstVotes) / totalVotes
     df["linearScore"] = (df["bestVotes"] - df["worstVotes"]) / df["totalVotes"]
 
     if df.empty:
@@ -63,9 +68,8 @@ def analyze_data():
         conn.close()
         return
 
-    # Trasforma il punteggio lineare in percentuale offensività usando la formula:
+    # Trasforma il punteggio lineare in percentuale offensività:
     # ((1 - linearScore) / 2) * 100
-    # In questo modo, linearScore = -1 -> 100% offensivo, linearScore = 1 -> 0% offensivo.
     overall_mean_linear = ((1 - df["linearScore"].mean()) / 2) * 100
 
     if np.isnan(overall_mean_linear):
@@ -73,24 +77,27 @@ def analyze_data():
         conn.close()
         return
 
-    print(f"Overall mean offensive score: {overall_mean_linear:.2f}%")
+    # Stampa in arancione il messaggio con l'overall mean offensive score
+    print(f"{ORANGE}Overall mean offensive score: {overall_mean_linear:.2f}%{RESET}")
 
-    # Calcolo della deviazione standard binaria per frase
-    # p_offensive = worstVotes / totalVotes, poiché worst rappresenta i voti offensivi
-    df["p_offensive"] = df["worstVotes"] / df["totalVotes"]
-    df["stdDevBinary"] = 2 * np.sqrt(df["p_offensive"] * (1 - df["p_offensive"]))
-
-    phrase_std_dev = df.groupby("phrase").agg(
-        stdDevBinary=("stdDevBinary", "mean")
+    # Calcolo della deviazione standard binaria per frase aggregata:
+    # Aggrega i voti per ciascuna frase
+    phrase_agg = df.groupby("phrase").agg(
+        sumWorst=("worstVotes", "sum"),
+        sumTotal=("totalVotes", "sum")
     ).reset_index()
+    # Calcola p_total per ciascuna frase
+    phrase_agg["p_total"] = phrase_agg["sumWorst"] / phrase_agg["sumTotal"]
+    # Calcola la deviazione standard aggregata
+    phrase_agg["stdDevAggregated"] = 2 * np.sqrt(phrase_agg["p_total"] * (1 - phrase_agg["p_total"]))
 
-    # Ordina le frasi per deviazione standard binaria (decrescente)
-    phrase_std_dev = phrase_std_dev.sort_values(by="stdDevBinary", ascending=False)
+    # Ordina le frasi per deviazione standard aggregata (decrescente)
+    phrase_agg = phrase_agg.sort_values(by="stdDevAggregated", ascending=False)
 
-    # Salva i risultati delle frasi
+    # Salva i risultati delle frasi in un file CSV con tab come separatore
     phrase_output_file = f"analysis/phraseStdDevCategory_{category_id}.csv"
-    phrase_std_dev.to_csv(phrase_output_file, index=False, sep=';', encoding='utf-8-sig')
-    print(f"Phrase-wise binary standard deviation saved to {phrase_output_file}.")
+    phrase_agg.to_csv(phrase_output_file, index=False, sep='\t', encoding='utf-8-sig')
+    print(f"Phrase-wise aggregated binary standard deviation saved to {phrase_output_file}.")
 
     # Menu per l'analisi di gruppo
     print("Data Analysis Menu")
@@ -115,6 +122,7 @@ def analyze_data():
                 return "50-59"
             else:
                 return "60+"
+
         df["ageGroup"] = df["age"].apply(age_group)
         group_column = "ageGroup"
     elif choice == "2":
@@ -153,44 +161,43 @@ def analyze_data():
     # Trasforma il punteggio medio in percentuale offensività
     grouped["meanLinearScore"] = ((1 - grouped["meanLinearScore"]) / 2) * 100
 
+    # Salva i risultati del raggruppamento in un file CSV con tab come separatore
+    output_file = f"analysis/analysisBy{group_column.capitalize()}Category_{category_id}.csv"
+    grouped.to_csv(output_file, index=False, sep='\t', encoding='utf-8-sig')
+
+    # Prepara l'output formattato per la stampa a terminale
+    header_line = f"{ORANGE}{group_column.capitalize():<15}\t{'Mean Offensive Score':>20}\t{'Total Votes':>15}\t{'Std Dev':>15}{RESET}\n"
+    output_text = header_line
+    for _, row in grouped.iterrows():
+        output_text += f"{row[group_column]:<15}\t{row['meanLinearScore']:>20.2f}%\t{row['totalVotes']:>15}\t{row['stdDevLinear']:>15.2f}%\n"
+
+    print(f"\nAnalysis by {group_column.capitalize()} for category ID {category_id}:")
+    print(output_text)
+
     # Identifica le frasi più offensive con accordo uniforme (bassa deviazione standard)
     most_offensive_phrases = df.groupby("phrase").agg(
         meanOffensivityScore=("linearScore", "mean"),
         stdDevOffensivity=("linearScore", "std")
     ).reset_index()
-
-    # Trasforma il punteggio medio offensività in percentuale usando la formula invertita
+    # Trasforma il punteggio medio offensività in percentuale
     most_offensive_phrases["meanOffensivityScore"] = ((1 - most_offensive_phrases["meanOffensivityScore"]) / 2) * 100
-
-    # Seleziona le frasi con la deviazione standard più bassa e le ordina in ordine decrescente di offensività
+    # Seleziona le 5 frasi con la deviazione standard minima (in accordo uniforme)
     uniformly_offensive = most_offensive_phrases[
         most_offensive_phrases["stdDevOffensivity"] == most_offensive_phrases["stdDevOffensivity"].min()
-    ]
+        ]
     uniformly_offensive = uniformly_offensive.sort_values(by="meanOffensivityScore", ascending=False).head(5)
 
-    # Salva i risultati principali
-    output_file = f"analysis/analysisBy{group_column.capitalize()}Category_{category_id}.csv"
-    grouped.to_csv(output_file, index=False, sep=';', encoding='utf-8-sig')
-
-    # Appendi le frasi più offensive al file
+    # Appendi le frasi più offensive al file di output CSV (con tab come separatore)
     with open(output_file, "a", encoding="utf-8-sig") as f:
         f.write("\n--- Most Offensive Phrases (Uniform Agreement) ---\n")
         for _, row in uniformly_offensive.iterrows():
             f.write(
-                f"Phrase: {row['phrase']}, Offensivity Score: {row['meanOffensivityScore']:.2f}%, Std Dev: {row['stdDevOffensivity']:.2f}\n"
-            )
+                f"Phrase:\t{row['phrase']}\nOffensivity Score:\t{row['meanOffensivityScore']:.2f}%\tStd Dev:\t{row['stdDevOffensivity']:.2f}\n\n")
 
-    print(f"Group-wise analysis and offensive phrases saved to {output_file}.")
+    print(f"Group-wise analysis and offensive phrases appended to {output_file}.")
 
     conn.close()
-    # Formatta l'output con due cifre decimali e colonne ben allineate
-    pd.set_option('display.float_format', lambda x: f"{x:6.2f}%")
 
-    header = '\033[38;5;214m' + '  '.join(grouped.columns) + '\033[0m'
-    print(f"\nAnalysis by {group_column.capitalize()} for category ID {category_id}:")
-    print(header)
-    for index, row in grouped.iterrows():
-        print(f"{row[group_column]:>10}  {row['meanLinearScore']:>10.2f}%  {row['totalVotes']:>10}  {row['stdDevLinear']:>10.2f}%")
 
 if __name__ == "__main__":
     analyze_data()

@@ -1,0 +1,5 @@
+﻿[38;5;214mAgegroup       	Mean Offensive Score	    Total Votes	        Std Dev[0m
+20-29          	               51.26%	            886	           0.28%
+40-49          	               37.81%	            167	            nan%
+60+            	               31.32%	             92	            nan%
+<20            	               22.05%	            187	            nan%

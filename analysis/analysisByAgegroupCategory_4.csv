@@ -1,12 +1,22 @@
-﻿ageGroup;meanLinearScore;totalVotes;stdDevLinear
-20-29;51.25594025797692;886;0.27652471148685337
-40-49;37.81362007168458;167;
-60+;31.318681318681318;92;
-<20;22.053872053872052;187;
+﻿ageGroup	meanLinearScore	totalVotes	stdDevLinear
+20-29	51.25594025797692	886	0.27652471148685337
+40-49	37.81362007168458	167	
+60+	31.318681318681318	92	
+<20	22.053872053872052	187	
 
 --- Most Offensive Phrases (Uniform Agreement) ---
-Phrase: @DerekBradPhoto @Eurosport_IT ma vai a fare in culo Derek, Offensivity Score: 100.00%, Std Dev: 0.00
-Phrase: @acmilan Andate a fare in culo, avete rovinato tutto., Offensivity Score: 100.00%, Std Dev: 0.00
-Phrase: @anitablanco3 Povero spara cazzate. La sera in solitudine sputa al riflesso che vede allo specchio. Fottuto opportunista sé fatto eleggere pure nelle liste del PD . Faccia di culo, Offensivity Score: 100.00%, Std Dev: 0.00
-Phrase: @ceciliasala Ma vai a prenderlo nel culo cessa BASTARDA, Offensivity Score: 100.00%, Std Dev: 0.00
-Phrase: @lele_Bertea @repubblica Lo dici tu che xe tuo figlio. Sappi che non sono gli ebrei che han decapitato le teste dei bambini e tenuto in ostaggi gente al buio per 18 mesi. Faccia da culo pascola cammelli..., Offensivity Score: 100.00%, Std Dev: 0.00
+Phrase:	@DerekBradPhoto @Eurosport_IT ma vai a fare in culo Derek
+Offensivity Score:	100.00%	Std Dev:	0.00
+
+Phrase:	@acmilan Andate a fare in culo, avete rovinato tutto.
+Offensivity Score:	100.00%	Std Dev:	0.00
+
+Phrase:	@anitablanco3 Povero spara cazzate. La sera in solitudine sputa al riflesso che vede allo specchio. Fottuto opportunista sé fatto eleggere pure nelle liste del PD . Faccia di culo
+Offensivity Score:	100.00%	Std Dev:	0.00
+
+Phrase:	@ceciliasala Ma vai a prenderlo nel culo cessa BASTARDA
+Offensivity Score:	100.00%	Std Dev:	0.00
+
+Phrase:	@lele_Bertea @repubblica Lo dici tu che xe tuo figlio. Sappi che non sono gli ebrei che han decapitato le teste dei bambini e tenuto in ostaggi gente al buio per 18 mesi. Faccia da culo pascola cammelli...
+Offensivity Score:	100.00%	Std Dev:	0.00
+

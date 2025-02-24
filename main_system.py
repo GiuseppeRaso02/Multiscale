@@ -4,184 +4,186 @@ from setup_database import setup_database
 from annotate_system import annotation_menu
 from analyze_data import analyze_data
 import questionary
-
+from tabulate import tabulate  # pip install tabulate
 
 DB_NAME = "annotation_system.db"
 
+
 def add_user():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
+    username = questionary.text("Enter username:").ask().strip()
+    age_str = questionary.text("Enter age:").ask().strip()
+    try:
+        age = int(age_str)
+    except ValueError:
+        print("Age must be a valid integer.")
+        return
+    gender = questionary.text("Enter gender (Male/Female/Non-Binary/Other):").ask().strip()
+    education = questionary.select(
+        "Enter education level:",
+        choices=[
+            "Elementary School",
+            "Middle School",
+            "High School Diploma",
+            "Bachelor's Degree",
+            "Master's Degree",
+            "PhD"
+        ]
+    ).ask()
 
-    username = input("Enter username: ")
-    age = int(input("Enter age: "))
-    gender = input("Enter gender (Male/Female/Non-Binary/Other): ")
+    try:
+        with sqlite3.connect(DB_NAME) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO users (username, age, gender, education) VALUES (?, ?, ?, ?)",
+                (username, age, gender, education)
+            )
+            conn.commit()
+        print(f"User '{username}' added successfully!")
+    except sqlite3.Error as e:
+        print("An error occurred while adding the user:", e)
 
-    question_education = [
-        {
-            'type': 'list',
-            'name': 'education',
-            'message': 'Enter education level:',
-            'choices': [
-                "Elementary School",
-                "Middle School",
-                "High School Diploma",
-                "Bachelor's Degree",
-                "Master's Degree",
-                "PhD"
-            ]
-        }
-    ]
-
-    education = questionary.prompt(question_education)['education']
-
-    cursor.execute("""
-        INSERT INTO users (username, age, gender, education)
-        VALUES (?, ?, ?, ?)
-    """, (username, age, gender, education))
-
-    conn.commit()
-    conn.close()
-    print(f"User {username} added successfully!")
 
 def list_users():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-
-    cursor.execute("SELECT * FROM users")
-    users = cursor.fetchall()
-    conn.close()
-
-    print("Users List:")
-    for user in users:
-        print(user)
-
+    try:
+        with sqlite3.connect(DB_NAME) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, username, age, gender, education FROM users")
+            users = cursor.fetchall()
+        if users:
+            headers = ["ID", "Username", "Age", "Gender", "Education"]
+            print(tabulate(users, headers=headers, tablefmt="pretty"))
+        else:
+            print("No users found.")
+    except sqlite3.Error as e:
+        print("Error retrieving users:", e)
     input("Press Enter to return to the main menu.")
 
+
 def delete_user():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
+    username = questionary.text("Enter the username to delete:").ask().strip()
+    try:
+        with sqlite3.connect(DB_NAME) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+            user = cursor.fetchone()
+            if not user:
+                print("User not found!")
+            else:
+                user_id = user[0]
+                cursor.execute("DELETE FROM annotations WHERE user_id = ?", (user_id,))
+                cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+                conn.commit()
+                print(f"User '{username}' and all associated data have been deleted.")
+    except sqlite3.Error as e:
+        print("Error deleting user:", e)
 
-    username = input("Enter the username to delete: ")
-    cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
-    user = cursor.fetchone()
-
-    if not user:
-        print("User not found!")
-    else:
-        user_id = user[0]
-        cursor.execute("DELETE FROM annotations WHERE user_id = ?", (user_id,))
-        cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
-        conn.commit()
-        print(f"User '{username}' and all associated data have been deleted.")
-
-    conn.close()
 
 def delete_all_annotations():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-
-    confirm = input("Are you sure you want to delete all annotations? (yes/no): ").lower()
-    if confirm == "yes":
-        cursor.execute("DELETE FROM annotations")
-        conn.commit()
-        print("All annotations have been deleted.")
+    confirm = questionary.confirm("Are you sure you want to delete all annotations?").ask()
+    if confirm:
+        try:
+            with sqlite3.connect(DB_NAME) as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM annotations")
+                conn.commit()
+            print("All annotations have been deleted.")
+        except sqlite3.Error as e:
+            print("Error deleting annotations:", e)
     else:
         print("Operation cancelled.")
 
-    conn.close()
 
 def add_category():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-
-    while True:
-        print("Add Category")
-        print("1. Enter category name")
-        print("2. Return to main menu")
-
-        choice = input("Choose an option: ")
-        if choice == "2":
-            return
-
-        if choice == "1":
-            category_name = input("Enter category name: ")
-            cursor.execute("INSERT INTO categories (name) VALUES (?)", (category_name,))
-            conn.commit()
-            conn.close()
+    choice = questionary.select(
+        "Add Category",
+        choices=[
+            "Enter category name",
+            "Return to main menu"
+        ]
+    ).ask()
+    if choice == "Return to main menu":
+        return
+    elif choice == "Enter category name":
+        category_name = questionary.text("Enter category name:").ask().strip()
+        try:
+            with sqlite3.connect(DB_NAME) as conn:
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO categories (name) VALUES (?)", (category_name,))
+                conn.commit()
             print(f"Category '{category_name}' added successfully!")
-            return
+        except sqlite3.Error as e:
+            print("Error adding category:", e)
+
 
 def import_phrases_from_tsv(category_id, filename):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-
     try:
-        with open(filename, 'r', encoding='utf-8') as file:
-            reader = csv.reader(file, delimiter='\t')
-            for row in reader:
-                index, text = row
-                cursor.execute("INSERT INTO phrases (text, category_id) VALUES (?, ?)", (text, category_id))
-        conn.commit()
-        print(f"Phrases from {filename} imported successfully!")
+        with sqlite3.connect(DB_NAME) as conn:
+            cursor = conn.cursor()
+            with open(filename, 'r', encoding='utf-8') as file:
+                reader = csv.reader(file, delimiter='\t')
+                for row in reader:
+                    if len(row) >= 2:
+                        index, text = row[0], row[1]
+                        cursor.execute("INSERT INTO phrases (text, category_id) VALUES (?, ?)", (text, category_id))
+            conn.commit()
+        print(f"Phrases from '{filename}' imported successfully!")
     except FileNotFoundError:
         print(f"Error: File '{filename}' not found. Please check the file path and try again.")
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-    finally:
-        conn.close()
+        print("An unexpected error occurred:", e)
+
 
 def main():
     setup_database()
-
     while True:
-        print("1. Add User")
-        print("2. Delete User and Associated Data")
-        print("3. List Users")
-        print("4. Add Category")
-        print("5. Import Phrases (from TSV)")
-        print("6. Start Annotation")
-        print("7. Analyze Data")
-        print("8. Delete All Annotations")
-        print("9. Exit")
+        choice = questionary.select(
+            "Main Menu",
+            choices=[
+                "Add User",
+                "Delete User and Associated Data",
+                "List Users",
+                "Add Category",
+                "Import Phrases (from TSV)",
+                "Start Annotation",
+                "Analyze Data",
+                "Delete All Annotations",
+                "Exit"
+            ]
+        ).ask()
 
-        choice = input("Choose an option: ")
-
-        if choice == "1":
+        if choice == "Add User":
             add_user()
-        elif choice == "2":
+        elif choice == "Delete User and Associated Data":
             delete_user()
-        elif choice == "3":
+        elif choice == "List Users":
             list_users()
-        elif choice == "4":
+        elif choice == "Add Category":
             add_category()
-        elif choice == "5":
-            conn = sqlite3.connect(DB_NAME)
-            cursor = conn.cursor()
-
-            category_name = input("Enter category name to import phrases into: ")
-
-            cursor.execute("SELECT id FROM categories WHERE name = ?", (category_name,))
-            category = cursor.fetchone()
-
-            if not category:
-                print(f"Category '{category_name}' not found!")
-            else:
-                category_id = category[0]
-                filename = input("Enter TSV filename (e.g., phrases.tsv): ")
-                import_phrases_from_tsv(category_id, filename)
-
-            conn.close()
-        elif choice == "6":
+        elif choice == "Import Phrases (from TSV)":
+            category_name = questionary.text("Enter category name to import phrases into:").ask().strip()
+            try:
+                with sqlite3.connect(DB_NAME) as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT id FROM categories WHERE name = ?", (category_name,))
+                    category = cursor.fetchone()
+                if not category:
+                    print(f"Category '{category_name}' not found!")
+                else:
+                    category_id = category[0]
+                    filename = questionary.text("Enter TSV filename (e.g., phrases.tsv):").ask().strip()
+                    import_phrases_from_tsv(category_id, filename)
+            except sqlite3.Error as e:
+                print("Database error:", e)
+        elif choice == "Start Annotation":
             annotation_menu()
-        elif choice == "7":
+        elif choice == "Analyze Data":
             analyze_data()
-        elif choice == "8":
+        elif choice == "Delete All Annotations":
             delete_all_annotations()
-        elif choice == "9":
+        elif choice == "Exit":
             print("Goodbye!")
             break
-        else:
-            print("Invalid choice! Please try again.")
+
 
 if __name__ == "__main__":
     main()

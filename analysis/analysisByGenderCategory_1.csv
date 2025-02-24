@@ -1,3 +1,8 @@
-﻿gender;meanLinearScore;totalVotes;stdDevLinear
-Female;44.44444444444444;9;
-Male;44.88945578231293;129;1.9026845070408633
+﻿gender	meanLinearScore	totalVotes	stdDevLinear
+Female	44.44444444444444	9	
+Male	41.76382047071702	166	0.0904764885825582
+
+--- Most Offensive Phrases (Uniform Agreement) ---
+Phrase:	Non aspettarti di risolvere tutto col culo: ci vuole anche impegno.
+Offensivity Score:	19.40%	Std Dev:	0.31
+
