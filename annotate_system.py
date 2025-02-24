@@ -6,11 +6,9 @@ import textwrap
 
 DB_NAME = "annotation_system.db"
 
-
 def format_phrase(phrase, width=80):
     """Formatta la frase per adattarla alla larghezza del terminale"""
     return "\n".join(textwrap.wrap(phrase, width))
-
 
 def annotate_category(user_id, category_id):
     conn = sqlite3.connect(DB_NAME)
@@ -37,6 +35,7 @@ def annotate_category(user_id, category_id):
     seen_phrases = set()
 
     for _ in range(repetitions):
+        random.shuffle(all_phrases)  # Rimescola le frasi a ogni ripetizione
         for i in range(0, len(all_phrases), num_phrases):
             phrases = all_phrases[i:i + num_phrases]
 
@@ -44,41 +43,57 @@ def annotate_category(user_id, category_id):
             for phrase in phrases:
                 seen_phrases.add(phrase[0])
 
-            formatted_phrases = [{
-                'name': format_phrase(phrase[1]), 'value': phrase[0]
-            } for phrase in phrases]
+            formatted_phrases = [{'name': format_phrase(phrase[1]), 'value': phrase[0]} for phrase in phrases]
+            formatted_phrases.append({'name': 'Exit and Save', 'value': 'exit'})
 
-            question_best = [
-                {
-                    'type': 'checkbox',
-                    'name': 'best_phrases',
-                    'message': 'Select the Offensive phrases:',
-                    'choices': formatted_phrases
-                }
-            ]
-            best_phrases = questionary.prompt(question_best)['best_phrases']
+            # Seleziona le frasi  offensive
+            best_phrases = questionary.checkbox(
+                'Select the Offensive phrases (or Exit to save):',
+                choices=formatted_phrases
+            ).ask()
 
-            question_worst = [
-                {
-                    'type': 'checkbox',
-                    'name': 'worst_phrases',
-                    'message': 'Select the not Offensive phrases:',
-                    'choices': formatted_phrases
-                }
-            ]
-            worst_phrases = questionary.prompt(question_worst)['worst_phrases']
+            if 'exit' in best_phrases:
+                best_phrases.remove('exit')
+                for phrase_id in best_phrases:
+                    cursor.execute("""
+                        INSERT INTO annotations (user_id, phrase_id, best, worst)
+                        VALUES (?, ?, ?, ?)
+                    """, (user_id, phrase_id, False, True))
+                conn.commit()
+                conn.close()
+                print("Annotations saved successfully! Exiting early.")
+                return
 
+            # Seleziona le frasi NON offensive
+            worst_phrases = questionary.checkbox(
+                'Select the Non-Offensive phrases (or Exit to save):',
+                choices=formatted_phrases
+            ).ask()
+
+            if 'exit' in worst_phrases:
+                worst_phrases.remove('exit')
+                for phrase_id in worst_phrases:
+                    cursor.execute("""
+                        INSERT INTO annotations (user_id, phrase_id, best, worst)
+                        VALUES (?, ?, ?, ?)
+                    """, (user_id, phrase_id, True, False))
+                conn.commit()
+                conn.close()
+                print("Annotations saved successfully! Exiting early.")
+                return
+
+            # Salva le annotazioni nel database
             for phrase_id in best_phrases:
                 cursor.execute("""
                     INSERT INTO annotations (user_id, phrase_id, best, worst)
                     VALUES (?, ?, ?, ?)
-                """, (user_id, phrase_id, True, False))
+                """, (user_id, phrase_id, False, True))
 
             for phrase_id in worst_phrases:
                 cursor.execute("""
                     INSERT INTO annotations (user_id, phrase_id, best, worst)
                     VALUES (?, ?, ?, ?)
-                """, (user_id, phrase_id, False, True))
+                """, (user_id, phrase_id, True, False))
 
     # Ensure all phrases are seen at least once
     unseen_phrases = [phrase for phrase in all_phrases if phrase[0] not in seen_phrases]
@@ -90,8 +105,6 @@ def annotate_category(user_id, category_id):
     conn.commit()
     conn.close()
     print("Annotations saved successfully!")
-
-    calculate_scores_for_user(user_id)
 
 def calculate_scores_for_user(user_id):
     conn = sqlite3.connect(DB_NAME)

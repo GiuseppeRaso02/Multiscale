@@ -1,3 +1,2 @@
-gender,mean_score,total_votes,std_dev
-Female,-0.1111111111111111,9,0.03530673530673531
-Male,-0.06445578231292518,126,0.01134859349145062
+﻿gender;mean_linear_score;mean_exponential_score;total_votes;linear_mean_deviation;exponential_mean_deviation
+Male;-0.21137566137566138;-0.3532735720913392;110;0.0;5.551115123125783e-17
