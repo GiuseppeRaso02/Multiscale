@@ -236,6 +236,9 @@ def view_scores_by_category():
 
 
 def annotation_menu():
+    import sqlite3
+    import questionary
+
     username = questionary.text("Enter your username:").ask().strip()
     with sqlite3.connect(DB_NAME) as conn:
         cursor = conn.cursor()
@@ -248,34 +251,39 @@ def annotation_menu():
         cursor.execute("SELECT id, name FROM categories")
         categories = cursor.fetchall()
 
-    print("Available categories:")
-    for category in categories:
-        print(f"{category[0]}. {category[1]}")
+    while True:
+        print("\nAvailable categories:")
+        for category in categories:
+            print(f"{category[0]}. {category[1]}")
 
-    option = questionary.select(
-        "Options:",
-        choices=[
-            "Annotate a category",
-            "View annotations by user",
-            "View scores by category"
-        ]
-    ).ask()
+        option = questionary.select(
+            "Options:",
+            choices=[
+                "Annotate a category",
+                "View annotations by user",
+                "View scores by category",
+                "Exit"
+            ]
+        ).ask()
 
-    if option == "Annotate a category":
-        category_id_str = questionary.text("Choose a category ID to annotate:").ask().strip()
-        try:
-            category_id = int(category_id_str)
-        except ValueError:
-            print("Invalid category ID.")
-            return
-        annotate_category(user_id, category_id)
-        # Nel sottomenu di annotation_menu, dopo aver già ottenuto 'username'
-    elif option == "View annotations by user":
-        view_annotations_by_user(username)
-    elif option == "View scores by category":
-        view_scores_by_category()
-    else:
-        print("Invalid option.")
+        if option == "Annotate a category":
+            category_id_str = questionary.text("Choose a category ID to annotate:").ask().strip()
+            try:
+                category_id = int(category_id_str)
+            except ValueError:
+                print("Invalid category ID.")
+                continue
+            annotate_category(user_id, category_id)
+        elif option == "View annotations by user":
+            # Passa il nome utente già inserito, in modo da non chiederlo nuovamente
+            view_annotations_by_user(username)
+        elif option == "View scores by category":
+            view_scores_by_category()
+        elif option == "Exit":
+            break
+        else:
+            print("Invalid option.")
+
 
 
 if __name__ == "__main__":
