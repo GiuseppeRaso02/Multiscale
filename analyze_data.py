@@ -174,25 +174,22 @@ def analyze_data():
     print(f"\nAnalysis by {group_column.capitalize()} for category ID {category_id}:")
     print(output_text)
 
-    # Identifica le frasi più offensive con accordo uniforme (bassa deviazione standard)
+    # Identifica le frasi più offensive: seleziona le prime 10 in base al punteggio offensivo
     most_offensive_phrases = df.groupby("phrase").agg(
         meanOffensivityScore=("linearScore", "mean"),
         stdDevOffensivity=("linearScore", "std")
     ).reset_index()
     # Trasforma il punteggio medio offensività in percentuale
     most_offensive_phrases["meanOffensivityScore"] = ((1 - most_offensive_phrases["meanOffensivityScore"]) / 2) * 100
-    # Seleziona le 5 frasi con la deviazione standard minima (in accordo uniforme)
-    uniformly_offensive = most_offensive_phrases[
-        most_offensive_phrases["stdDevOffensivity"] == most_offensive_phrases["stdDevOffensivity"].min()
-        ]
-    uniformly_offensive = uniformly_offensive.sort_values(by="meanOffensivityScore", ascending=False).head(5)
+    # Seleziona le 10 frasi con il punteggio offensivo più alto (senza filtrare per deviazione standard)
+    top_offensive = most_offensive_phrases.sort_values(by="meanOffensivityScore", ascending=False).head(10)
 
     # Appendi le frasi più offensive al file di output CSV (con tab come separatore)
     with open(output_file, "a", encoding="utf-8-sig") as f:
-        f.write("\n--- Most Offensive Phrases (Uniform Agreement) ---\n")
-        for _, row in uniformly_offensive.iterrows():
+        f.write("\n--- Top 10 Most Offensive Phrases ---\n")
+        for _, row in top_offensive.iterrows():
             f.write(
-                f"Phrase:\t{row['phrase']}\nOffensivity Score:\t{row['meanOffensivityScore']:.2f}%\tStd Dev:\t{row['stdDevOffensivity']:.2f}\n\n")
+                f"Phrase:\t{row['phrase']}\nOffensivity Score:\t{row['meanOffensivityScore']:.2f}%\tStd Dev:\t{row['stdDevOffensivity']:.2f}%\n\n")
 
     print(f"Group-wise analysis and offensive phrases appended to {output_file}.")
 
