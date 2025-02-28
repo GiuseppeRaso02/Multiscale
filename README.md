@@ -1,6 +1,6 @@
-# Annotation System
+# Multiscale
 
-Questo repository contiene un sistema per la gestione e l'annotazione dei dati, con funzionalità sia da linea di comando che tramite interfaccia grafica.
+Questo repository contiene un sistema per la gestione, l'annotazione e l'analisi dei dati, con funzionalità sia da linea di comando che tramite interfaccia grafica.
 
 ## Funzionalità
 
@@ -44,7 +44,7 @@ pip install -r requirements.txt
 ```
 ## Utilizzo
 ### Database
-Se non si desidera utilizzare il database già popolato, è possibile ricrearlo semplicemente eliminando il file del database esistente (ad esempio annotation_system.db) prima di eseguire il sistema.
+Se non si desidera utilizzare il database già popolato, è possibile ricrearlo semplicemente eliminando il file del database esistente (annotation_system.db) prima di eseguire il sistema.
 
 ## Modalità a Linea di Comando
 Per eseguire il sistema dalla linea di comando, lancia:
@@ -66,6 +66,9 @@ Per effettuare l'annotazione tramite interfaccia grafica, vai nella cartella GUI
 python main_window.py
 ```
 Questo aprirà una finestra interattiva che ti permetterà di annotare le frasi.
+
+## Analisi e Visualizzazione dei Dati
+Il file analysis.py contiene grafici e visualizzazioni che permettono di comprendere meglio i dati raccolti, evidenziando tendenze e distribuzioni per una più approfondita analisi.
 
 ## Struttura del Repository
 - **main_system.py**: Script principale per la gestione a linea di comando e l'analisi dei dati.
